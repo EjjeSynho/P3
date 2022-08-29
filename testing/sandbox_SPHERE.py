@@ -58,8 +58,19 @@ params['sensor_HO']['NumberPhotons'] = [data_test['WFS']['Nph vis']]
 seeing = params['atmosphere']['Seeing']
 
 #%% ------------------------ Init fitting ------------------------
+
+include_psd = {
+    'noise':           True,
+    'aliasing':        True,
+    'diff_refr':       True,
+    'chromatism':      True,
+    'spatio_temporal': True,
+    'fitting':         True,
+    'only_fitting':    False
+}
+
 ao  = aoSystem(params, getPSDatNGSpositions=False, verbose=True)
-fao = fourierModel(ao, calcPSF=False, display=False, verbose=True) #instantiating the model
+fao = fourierModel(ao, calcPSF=False, display=False, verbose=True, include_psd=include_psd) #instantiating the model
 
 x0 = {
     'sensor_HO.NoiseVariance': 0.1,
