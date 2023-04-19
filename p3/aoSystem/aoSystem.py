@@ -297,4 +297,3 @@ class aoSystem():
                                     + self.wfe['TT Servo-lag']**2 + self.wfe['TT Noise']**2\
                                     + self.wfe['Focal anisoplanatism']**2)
         self.wfe['Strehl'] = np.exp(-self.wfe['Total']**2 * (2*np.pi*1e-9/self.src.wvl[0])**2)
-        

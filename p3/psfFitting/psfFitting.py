@@ -53,7 +53,6 @@ def psfFitting(image, psfModelInst, x0, fixed=None, weights=None, method='trf',
             0 : progress bar only
             1: number of iteration
             2: minimization details for each iteration
-
     Returns
     -------
     out.x : numpy.array

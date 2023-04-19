@@ -5,13 +5,12 @@ Created on Thu Aug 16 16:34:02 2018
 
 @author: omartin
 """
-import os.path as ospath
-import re
-
 import numpy as np
 from astropy.io import fits
+import os.path as ospath
+import re
 from scipy.ndimage import rotate
-import aoSystem.FourierUtils as FourierUtils
+import p3.aoSystem.FourierUtils as FourierUtils
 
 class Attribute(object):
     pass
@@ -187,4 +186,4 @@ class telescope:
         plt.xlabel("Pixels")
         plt.ylabel("Pixels")
         plt.title("Telescope pupil")
-
+            

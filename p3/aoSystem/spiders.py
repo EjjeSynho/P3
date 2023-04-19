@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from distutils.spawn import find_executable
 from scipy.ndimage import label
 
-import aoSystem.FourierUtils as FourierUtils
+import p3.aoSystem.FourierUtils as FourierUtils
 
 #%% DISPLAY FEATURES
 mpl.rcParams['font.size'] = 16
@@ -68,19 +68,21 @@ class spiders:
         """"""
         return self.D/self.nPixels
     
-    def __init__(self,spidersAngle, spidersWidth, spidersInitCoor=[], D=1, cobs=0, \
-                 mskPup = False, symetric = False, nPixels= 0 ):
+    def __init__(self,spidersAngle, spidersWidth,
+                 spidersInitCoor=[], D=1, cobs=0,
+                 mskPup=False, symetric=False, getPetal=False, nPixels=0):
         
         # PARSING INPUTS
-        self.nSpiders        = 0  
-        self.spidersAngle    = np.asarray(spidersAngle) * np.pi/180
-        self.spidersWidth    = spidersWidth
+        self.nSpiders = 0  
+        self.spidersAngle = np.asarray(spidersAngle) * np.pi/180
+        self.spidersWidth = spidersWidth
         self.spidersInitCoor = np.array(spidersInitCoor)
-        self.D               = D
-        self.cobs            = cobs
-        self.mskPup          = mskPup
-        self.symetric        = symetric
-        self.nPixels         = nPixels
+        self.D = D
+        self.cobs = cobs
+        self.mskPup = mskPup
+        self.symetric = symetric
+        self.getPetal = getPetal
+        self.nPixels = nPixels
         
         if len(self.spidersInitCoor) == 0:
             self.nSpiders        = len(self.spidersAngle)
@@ -92,13 +94,13 @@ class spiders:
             print('Caution :  spider class instantiated but no resolution given')   
         else:
             self.nSpiders = len(spidersAngle)
-            self.makeSpiders(self.nPixels)
+            self.makeSpiders(self.nPixels, getPetal=getPetal)
         
     def __repr__(self):
         s = ('___ SPIDERS ___\n' + 'nSpiders= %d\nWidth\t= %.1fm'%(self.nSpiders,self.spidersWidth)) 
         return s
     
-    def makeSpiders(self,nPixels,getPetal=False):
+    def makeSpiders(self, nPixels, getPetal=False):
         
         # DEFINING THE GEOMETRY
         self.nPixels = nPixels
