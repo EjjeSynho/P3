@@ -97,27 +97,12 @@ class fourierModel:
         
         self.t_initAO = 1000*(time.time() - tstart)
         
-        # Defining the frequency domain
-        if not hasattr(self, 'freq') or self.freq is None: # avoid unnecessary re-initialization
-            self.freq = frequencyDomain(self.ao, nyquistSampling=nyquistSampling, computeFocalAnisoCov=computeFocalAnisoCov)
+        if True:
+            # Defining the frequency domain
+            if not hasattr(self, 'freq') or self.freq is None: # avoid unnecessary re-initialization
+                self.freq = frequencyDomain(self.ao, nyquistSampling=nyquistSampling, computeFocalAnisoCov=computeFocalAnisoCov)
 
-        # DEFINING THE GUIDE STAR AND THE STRECHING FACTOR
-        if self.ao.lgs:
-            self.gs  = self.ao.lgs
-            self.nGs = self.ao.lgs.nSrc
-            self.strechFactor = 1.0/(1.0 - self.ao.atm.heights/self.gs.height[0])
-        else:
-            self.gs  = self.ao.ngs
-            self.nGs = self.ao.ngs.nSrc
-            self.strechFactor = 1.0
-                        
-        # DEFINING THE MODELED ATMOSPHERE 
-        if (self.ao.dms.nRecLayers!=None) and (self.ao.dms.nRecLayers < len(self.ao.atm.weights)):
-            weights_mod,heights_mod = FourierUtils.eqLayers(self.ao.atm.weights,self.ao.atm.heights,self.ao.dms.nRecLayers)
-            if self.ao.dms.nRecLayers == 1:
-                heights_mod = [0.0]
-            wSpeed_mod = np.linspace(min(self.ao.atm.wSpeed),max(self.ao.atm.wSpeed),num=self.ao.dms.nRecLayers)
-            wDir_mod   = np.linspace(min(self.ao.atm.wDir),max(self.ao.atm.wDir),num=self.ao.dms.nRecLayers)
+            # DEFINING THE GUIDE STAR AND THE STRECHING FACTOR
             if self.ao.lgs:
                 self.gs  = self.ao.lgs
                 self.nGs = self.ao.lgs.nSrc
@@ -130,10 +115,13 @@ class fourierModel:
             # DEFINING THE MODELED ATMOSPHERE 
             if (self.ao.dms.nRecLayers!=None) and (self.ao.dms.nRecLayers < len(self.ao.atm.weights)):
                 weights_mod,heights_mod = FourierUtils.eqLayers(self.ao.atm.weights,self.ao.atm.heights,self.ao.dms.nRecLayers)
+                
                 if self.ao.dms.nRecLayers == 1:
                     heights_mod = [0.0]
+                
                 wSpeed_mod = np.linspace(min(self.ao.atm.wSpeed),max(self.ao.atm.wSpeed),num=self.ao.dms.nRecLayers)
                 wDir_mod   = np.linspace(min(self.ao.atm.wDir),max(self.ao.atm.wDir),num=self.ao.dms.nRecLayers)
+                
                 if self.ao.lgs:
                     self.strechFactor_mod = 1.0/(1.0 - heights_mod/self.gs.height[0])
             else:
@@ -184,7 +172,7 @@ class fourierModel:
                 if getFWHM == True or getEnsquaredEnergy==True or getEncircledEnergy==True:
                     self.getPsfMetrics(getEnsquaredEnergy=getEnsquaredEnergy,\
                         getEncircledEnergy=getEncircledEnergy,getFWHM=getFWHM)
-    
+
                 # DISPLAYING THE PSFS
                 if display:
                     self.displayResults(displayContour=displayContour)
@@ -209,10 +197,10 @@ class fourierModel:
             raise ValueError('Error : the PSF field of view is too small to simulate the AO correction area')
         
         # DEFINING THE NOISE AND ATMOSPHERE PSD
-        if self.ao.wfs.processing.noiseVar == [None]:
+        if self.ao.wfs.processing.noiseVar[0] == [None]:
             self.ao.wfs.processing.noiseVar = self.ao.wfs.NoiseVariance(self.ao.atm.r0 ,self.ao.atm.wvl)
         
-        self.Wn   = np.mean(self.ao.wfs.processing.noiseVar)/(2*self.freq.kcMin_)**2
+        self.Wn   = np.mean(self.ao.wfs.processing.noiseVar)/(2*self.freq.kcMax_)**2
         self.Wphi = self.ao.atm.spectrum(np.sqrt(self.freq.k2AO_))
         
         # DEFINE THE RECONSTRUCTOR
@@ -253,7 +241,7 @@ class fourierModel:
             self.errorBreakDown(verbose=self.verbose)
 
         # DEFINING BOUNDS
-        self.bounds = self.define_bounds()
+        self.bounds = self.defineBounds()
 
         self.t_init = 1000*(time.time()  - tstart)
 
@@ -269,7 +257,7 @@ class fourierModel:
         return s
 
 #%% BOUNDS FOR PSF-FITTING
-    def define_bounds(self):
+    def defineBounds(self):
         """
             Defines the bounds for the PSF model parameters :
                 Cn2/r0, jitterX, jitterY, jitterXY, dx, dy, bkg, stat
@@ -576,13 +564,14 @@ class fourierModel:
 
         self.t_controller = 1000*(time.time() - tstart)
 
+
 #%% PSD DEFINTIONS
     def powerSpectrumDensity(self,wfe=None):
         """ Total power spectrum density in nm^2.m^2
         """
         tstart = time.time()
 
-        dk = 2*self.freq.kcMin_/self.freq.resAO #TODO: or kcMax???
+        dk = 2*self.freq.kcMax_/self.freq.resAO #TODO: or kcMax???
         rad2nm = self.ao.atm.wvl*1e9/2/np.pi
 
         if self.ao.rtc.holoop['gain']==0:
@@ -637,7 +626,7 @@ class fourierModel:
             if self.nGs == 1 and self.gs.height[0] != 0:
                 print('SLAO case adding cone effect')
                 self.psdCone = self.focalAnisoplanatismPSD()
-                psd += np.repeat(self.psdCone[:, :, np.newaxis], self.ao.src.nSrc, axis=2)
+                psd[id1:id2,id1:id2,:] += np.repeat(self.psdCone[:, :, np.newaxis], self.ao.src.nSrc, axis=2)
                 
             # NORMALIZATION
             if wfe is not None:
@@ -667,8 +656,12 @@ class fourierModel:
         #        'all':            psd             
         #    }, handle, protocol=pickle.HIGHEST_PROTOCOL)
         #
-        ## Return the 3D PSD array in nm^2
+
+        # Return the 3D PSD array in nm^2
+        self.psd = psd
+        self.psdNormFactor = (dk * rad2nm)**2
         return psd * (dk * rad2nm)**2
+
 
     def fittingPSD(self):
         """ Fitting error power spectrum density """
@@ -735,7 +728,7 @@ class fourierModel:
         """
         tstart  = time.time()
         psd     = np.zeros((self.freq.resAO,self.freq.resAO))
-        if self.ao.wfs.processing.noiseVar > 0:
+        if self.ao.wfs.processing.noiseVar[0] > 0: #self.ao.wfs.processing.noiseVar > 0:
             if self.nGs < 2:        
                 psd = abs(self.Rx**2 + self.Ry**2)
                 psd = psd/(2*self.freq.kcMax_)**2
@@ -986,7 +979,7 @@ class fourierModel:
 
         if self.ao.rtc.holoop['gain'] != 0:
             # Derives wavefront error
-            rad2nm      = (2*self.freq.kcMin_/self.freq.resAO) * self.freq.wvlRef*1e9/2/np.pi  # TODO: or kcMax?
+            rad2nm      = (2*self.freq.kcMax_/self.freq.resAO) * self.freq.wvlRef*1e9/2/np.pi  # TODO: or kcMax?
 
             if np.any(self.ao.tel.opdMap_on):
                 self.wfeNCPA= np.std(self.ao.tel.opdMap_on[self.ao.tel.pupil!=0])
@@ -1338,41 +1331,41 @@ class fourierModel:
 
         self.t_displayPsfMetricsContours = 1000*(time.time() - tstart)
 
-    def displayExecutionTime(self):
 
+    def displayExecutionTime(self):
         # total
         print("Required time for total calculation (ms)\t : {:f}".format(self.t_init))
         print("Required time for AO system model init (ms)\t : {:f}".format(self.t_initAO))
         print("Required time for frequency domain init (ms)\t : {:f}".format(self.t_initFreq))
         print("Required time for final PSD calculation (ms)\t : {:f}".format(self.t_powerSpectrumDensity))
 
-            # Reconstructors
-            if self.ao.rtc.holoop['gain'] > 0:
-                print("Required time for WFS reconstructors init (ms)\t : {:f}".format(self.t_reconstructor))
-                if self.nGs > 1:
-                    print("Required time for optimization init (ms)\t : {:f}".format(self.t_finalReconstructor))
-                    print("Required time for tomography init (ms)\t\t : {:f}".format(self.t_tomo))
-                    print("Required time for optimization init (ms)\t : {:f}".format(self.t_opt))
-                # Controller
-                print("Required time for controller instantiation (ms)\t : {:f}".format(self.t_controller))
-                # PSD
-                print("Required time for fitting PSD calculation (ms)\t : {:f}".format(self.t_fittingPSD))
-                print("Required time for aliasing PSD calculation (ms)\t : {:f}".format(self.t_aliasingPSD))
-                print("Required time for noise PSD calculation (ms)\t : {:f}".format(self.t_noisePSD))
-                print("Required time for ST PSD calculation (ms)\t : {:f}".format(self.t_spatioTemporalPSD))
-                print("Required time for focal Aniso PSD calculation (ms)\t : {:f}".format(self.t_focalAnisoplanatism))
+        # Reconstructors
+        if self.ao.rtc.holoop['gain'] > 0:
+            print("Required time for WFS reconstructors init (ms)\t : {:f}".format(self.t_reconstructor))
+            if self.nGs > 1:
+                print("Required time for optimization init (ms)\t : {:f}".format(self.t_finalReconstructor))
+                print("Required time for tomography init (ms)\t\t : {:f}".format(self.t_tomo))
+                print("Required time for optimization init (ms)\t : {:f}".format(self.t_opt))
+            # Controller
+            print("Required time for controller instantiation (ms)\t : {:f}".format(self.t_controller))
+            # PSD
+            print("Required time for fitting PSD calculation (ms)\t : {:f}".format(self.t_fittingPSD))
+            print("Required time for aliasing PSD calculation (ms)\t : {:f}".format(self.t_aliasingPSD))
+            print("Required time for noise PSD calculation (ms)\t : {:f}".format(self.t_noisePSD))
+            print("Required time for ST PSD calculation (ms)\t : {:f}".format(self.t_spatioTemporalPSD))
+            print("Required time for focal Aniso PSD calculation (ms)\t : {:f}".format(self.t_focalAnisoplanatism))
+            
+            # Error breakdown
+            if hasattr(self,'t_errorBreakDown'):
+                print("Required time for error calculation (ms)\t : {:f}".format(self.t_errorBreakDown))
                 
-                # Error breakdown
-                if hasattr(self,'t_errorBreakDown'):
-                    print("Required time for error calculation (ms)\t : {:f}".format(self.t_errorBreakDown))
-                    
-                # PSF metrics
-                if hasattr(self,'t_getPsfMetrics'):
-                    print("Required time for get PSF metrics (ms)\t\t : {:f}".format(self.t_getPsfMetrics))
+            # PSF metrics
+            if hasattr(self,'t_getPsfMetrics'):
+                print("Required time for get PSF metrics (ms)\t\t : {:f}".format(self.t_getPsfMetrics))
+            
+            # Display
+            if self.display and self.calcPSF:
+                print("Required time for displaying figures (ms)\t : {:f}".format(self.t_displayResults))
                 
-                # Display
-                if self.display and self.calcPSF:
-                    print("Required time for displaying figures (ms)\t : {:f}".format(self.t_displayResults))
-                    
-            if self.calcPSF:
-                print("Required time for all PSFs calculation (ms)\t : {:f}".format(self.t_getPSF))
+        if self.calcPSF:
+            print("Required time for all PSFs calculation (ms)\t : {:f}".format(self.t_getPSF))
